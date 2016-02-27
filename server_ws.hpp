@@ -171,9 +171,18 @@ namespace SimpleWeb {
         
         std::map<std::string, Endpoint> endpoint;
         
+        Endpoint& addRuntimeEndpoint(const std::string& epRegex) {
+            Endpoint* ep = new Endpoint;
+            opt_ep_mtx.lock();
+            opt_endpoint.emplace_front(boost::regex(epRegex), ep);  //add to front to parse before static endpoints (and before greedy regex)
+            opt_ep_mtx.unlock();
+            return *ep;
+        }
+
     private:
-        std::vector<std::pair<boost::regex, Endpoint*> > opt_endpoint;
-        
+        std::deque<std::pair<boost::regex, Endpoint*> > opt_endpoint;   //deque is similar to vector, but allows efficient inserts at the front
+        std::mutex opt_ep_mtx;
+
     public:
         void start() {
             opt_endpoint.clear();
@@ -379,7 +388,10 @@ namespace SimpleWeb {
         
         void write_handshake(std::shared_ptr<Connection> connection, std::shared_ptr<boost::asio::streambuf> read_buffer) {
             //Find path- and method-match, and generate response
-            for(auto& endp: opt_endpoint) {
+            opt_ep_mtx.lock();
+            auto tmp_ep = opt_endpoint;
+            opt_ep_mtx.unlock();
+            for(auto& endp: tmp_ep) {
                 boost::smatch path_match;
                 if(boost::regex_match(connection->path, path_match, endp.first)) {
                     std::shared_ptr<boost::asio::streambuf> write_buffer(new boost::asio::streambuf);

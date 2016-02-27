@@ -15,3 +15,7 @@ ws_examples
 wss_examples
 crypto_test
 parse_test
+
+#Qt-creator stuff
+build-*
+Simple-Websocket-Server/*
